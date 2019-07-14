@@ -165,7 +165,7 @@ function doxygen_exec_main(current_path: string)
 
     const html_dir = path.join(output_dir, "html");
     const file_list = fs.readdirSync(html_dir);
-    const src_file_name = working_file_name.split(".")[0];
+    const src_file_name = camel_to_snake(working_file_name.split(".")[0]);
     let html_name = "";
     console.log("src_file_name = " + src_file_name);
     if (!file_list) {
@@ -173,7 +173,7 @@ function doxygen_exec_main(current_path: string)
     }
     file_list.forEach(
         function(fn) {
-            if (fn.includes(src_file_name)) {
+            if (fn.includes(src_file_name) && !fn.includes("_source")) {
                 const original_html_name = path.join(html_dir, fn).toString();
                 const rndn = Math.floor(Math.random() * 1000);
                 const fn_rnd = rndn.toString() + ".html";
@@ -184,9 +184,18 @@ function doxygen_exec_main(current_path: string)
         }
     );
 
-
     return html_name;
 }
+
+// https://qiita.com/thelarch/items/cc4707e1c7ef0d73ba73
+var camel_to_snake = function(p: string){
+    //大文字を_+小文字にする(例:A を _a)
+    return p.replace(/([A-Z])/g,
+        function(s) {
+            return '_' + s.charAt(0).toLowerCase();
+        }
+    );
+};
 
 // this method is called when your extension is deactivated
 export function deactivate() {}
