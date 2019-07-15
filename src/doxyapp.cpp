@@ -1,30 +1,29 @@
 /******************************************************************************
  *
- * Copyright (C) 2019 by hakua-doublemoon
+ * Copyright (C) 1997-2015 by Dimitri van Heesch.
  *
  * Permission to use, copy, modify, and distribute this software and its
- * documentation under the terms of the GNU General Public License is hereby 
- * granted. No representations are made about the suitability of this software 
+ * documentation under the terms of the GNU General Public License is hereby
+ * granted. No representations are made about the suitability of this software
  * for any purpose. It is provided "as is" without express or implied warranty.
  * See the GNU General Public License for more details.
  *
  * Documents produced by Doxygen are derivative works derived from the
  * input used in their production; they are not affected by this license.
  *
- * original source code is : https://github.com/doxygen/doxygen/tree/master/addon/doxyapp
  */
 
-/** @file
- *  @brief Example of how to use doxygen as part of another GPL applications
- *
- *  This example shows how to configure and run doxygen programmatically from
- *  within an application without generating the usual output.
- *  The example should work on any Unix like OS (including Linux and Mac OS X).
- *  
- *  This example shows how to use to code parser to get cross-references information
- *  and it also shows how to look up symbols in a program parsed by doxygen and
- *  show some information about them.
- */
+ /** @file
+  *  @brief Example of how to use doxygen as part of another GPL applications
+  *
+  *  This example shows how to configure and run doxygen programmatically from
+  *  within an application without generating the usual output.
+  *  The example should work on any Unix like OS (including Linux and Mac OS X).
+  *
+  *  This example shows how to use to code parser to get cross-references information
+  *  and it also shows how to look up symbols in a program parsed by doxygen and
+  *  show some information about them.
+  */
 
 #include <stdlib.h>
 #include <qfile.h>
@@ -40,77 +39,79 @@
 #include "config.h"
 #include "filename.h"
 
+#define DOXYGEN_PREVIEWER
+
 class XRefDummyCodeGenerator : public CodeOutputInterface
 {
-  public:
-    XRefDummyCodeGenerator(FileDef *fd) : m_fd(fd) {}
-   ~XRefDummyCodeGenerator() {}
+public:
+  XRefDummyCodeGenerator(FileDef* fd) : m_fd(fd) {}
+  ~XRefDummyCodeGenerator() {}
 
-    // these are just null functions, they can be used to produce a syntax highlighted
-    // and cross-linked version of the source code, but who needs that anyway ;-)
-    void codify(const char *) {}
-    void writeCodeLink(const char *,const char *,const char *,const char *,const char *)  {}
-    void writeLineNumber(const char *,const char *,const char *,int) {}
-    virtual void writeTooltip(const char *,const DocLinkInfo &,
-                              const char *,const char *,const SourceLinkInfo &, 
-                              const SourceLinkInfo &) {}
-    void startCodeLine(bool) {}
-    void endCodeLine() {}
-    void startCodeAnchor(const char *) {}
-    void endCodeAnchor() {}
-    void startFontClass(const char *) {}
-    void endFontClass() {}
-    void writeCodeAnchor(const char *) {}
-    void setCurrentDoc(Definition *,const char *,bool) {}
-    void addWord(const char *,bool) {}
+  // these are just null functions, they can be used to produce a syntax highlighted
+  // and cross-linked version of the source code, but who needs that anyway ;-)
+  void codify(const char*) {}
+  void writeCodeLink(const char*, const char*, const char*, const char*, const char*) {}
+  void writeLineNumber(const char*, const char*, const char*, int) {}
+  virtual void writeTooltip(const char*, const DocLinkInfo&,
+    const char*, const char*, const SourceLinkInfo&,
+    const SourceLinkInfo&) {}
+  void startCodeLine(bool) {}
+  void endCodeLine() {}
+  void startCodeAnchor(const char*) {}
+  void endCodeAnchor() {}
+  void startFontClass(const char*) {}
+  void endFontClass() {}
+  void writeCodeAnchor(const char*) {}
+  void setCurrentDoc(const Definition*, const char*, bool) {}
+  void addWord(const char*, bool) {}
 
-    // here we are presented with the symbols found by the code parser
-    void linkableSymbol(int l, const char *sym,Definition *symDef,Definition *context) 
+  // here we are presented with the symbols found by the code parser
+  void linkableSymbol(int l, const char* sym, Definition* symDef, Definition* context)
+  {
+    QCString ctx;
+    if (context) // the context of the symbol is known
     {
-      QCString ctx;
-      if (context) // the context of the symbol is known
+      if (context->definitionType() == Definition::TypeMember) // it is inside a member
       {
-        if (context->definitionType()==Definition::TypeMember) // it is inside a member
+        Definition* parentContext = context->getOuterScope();
+        if (parentContext && parentContext->definitionType() == Definition::TypeClass)
+          // it is inside a member of a class
         {
-          Definition *parentContext = context->getOuterScope();
-          if (parentContext && parentContext->definitionType()==Definition::TypeClass)
-             // it is inside a member of a class
-          {
-            ctx.sprintf("inside %s %s of %s %s",
-              ((MemberDef *)context)->memberTypeName().data(),
-              context->name().data(),
-              ((ClassDef*)parentContext)->compoundTypeString().data(),
-              parentContext->name().data());
-          }
-          else if (parentContext==Doxygen::globalScope) // it is inside a global member
-          {
-            ctx.sprintf("inside %s %s",
-              ((MemberDef *)context)->memberTypeName().data(),
-              context->name().data());
-          }
+          ctx.sprintf("inside %s %s of %s %s",
+            (dynamic_cast<MemberDef*>(context))->memberTypeName().data(),
+            context->name().data(),
+            (dynamic_cast<ClassDef*>(parentContext))->compoundTypeString().data(),
+            parentContext->name().data());
         }
-        if (ctx.isEmpty()) // it is something else (class, or namespace member, ...)
+        else if (parentContext == Doxygen::globalScope) // it is inside a global member
         {
-          ctx.sprintf("in %s",context->name().data());
+          ctx.sprintf("inside %s %s",
+            (dynamic_cast<MemberDef*>(context))->memberTypeName().data(),
+            context->name().data());
         }
       }
-      printf("Found symbol %s at line %d of %s %s\n",
-          sym,l,m_fd->getDefFileName().data(),ctx.data());
-      if (symDef && context) // in this case the definition of the symbol is
-        // known to doxygen.
+      if (ctx.isEmpty()) // it is something else (class, or namespace member, ...)
       {
-        printf("-> defined at line %d of %s\n",
-            symDef->getDefLine(),symDef->getDefFileName().data());
+        ctx.sprintf("in %s", context->name().data());
       }
     }
-  private:
-    FileDef *m_fd;
+    printf("Found symbol %s at line %d of %s %s\n",
+      sym, l, m_fd->getDefFileName().data(), ctx.data());
+    if (symDef && context) // in this case the definition of the symbol is
+      // known to doxygen.
+    {
+      printf("-> defined at line %d of %s\n",
+        symDef->getDefLine(), symDef->getDefFileName().data());
+    }
+  }
+private:
+  FileDef* m_fd;
 };
 
-static void findXRefSymbols(FileDef *fd)
+static void findXRefSymbols(FileDef* fd)
 {
   // get the interface to a parser that matches the file extension
-  ParserInterface *pIntf=Doxygen::parserManager->getParser(fd->getDefFileExtension());
+  ParserInterface* pIntf = Doxygen::parserManager->getParser(fd->getDefFileExtension());
 
   // get the programming language from the file name
   SrcLangExt lang = getLanguageFromFileName(fd->name());
@@ -119,45 +120,45 @@ static void findXRefSymbols(FileDef *fd)
   pIntf->resetCodeParserState();
 
   // create a new backend object 
-  XRefDummyCodeGenerator *xrefGen = new XRefDummyCodeGenerator(fd);
+  XRefDummyCodeGenerator* xrefGen = new XRefDummyCodeGenerator(fd);
 
   // parse the source code
   pIntf->parseCode(*xrefGen,
-                0,
-                fileToString(fd->absFilePath()),
-                lang,
-                FALSE,
-                0,
-                fd);
+    0,
+    fileToString(fd->absFilePath()),
+    lang,
+    FALSE,
+    0,
+    fd);
 
   // dismiss the object.
   delete xrefGen;
 }
 
-static void listSymbol(Definition *d)
+static void listSymbol(Definition* d)
 {
-  if (d!=Doxygen::globalScope && // skip the global namespace symbol
-      d->name().at(0)!='@'       // skip anonymous stuff
-     )      
+  if (d != Doxygen::globalScope && // skip the global namespace symbol
+    d->name().at(0) != '@'       // skip anonymous stuff
+    )
   {
     printf("%s\n",
-        d->name().data());
+      d->name().data());
   }
 }
 
 static void listSymbols()
 {
   QDictIterator<DefinitionIntf> sli(*Doxygen::symbolMap);
-  DefinitionIntf *di;
-  for (sli.toFirst();(di=sli.current());++sli)
+  DefinitionIntf* di;
+  for (sli.toFirst(); (di = sli.current()); ++sli)
   {
-    if (di->definitionType()==DefinitionIntf::TypeSymbolList) // list of symbols
+    if (di->definitionType() == DefinitionIntf::TypeSymbolList) // list of symbols
       // with same name
     {
       DefinitionListIterator dli(*(DefinitionList*)di);
-      Definition *d;
+      Definition* d;
       // for each symbol
-      for (dli.toFirst();(d=dli.current());++dli)
+      for (dli.toFirst(); (d = dli.current()); ++dli)
       {
         listSymbol(d);
       }
@@ -169,70 +170,68 @@ static void listSymbols()
   }
 }
 
-static void lookupSymbol(Definition *d)
+static void lookupSymbol(Definition* d)
 {
-  if (d!=Doxygen::globalScope && // skip the global namespace symbol
-      d->name().at(0)!='@'       // skip anonymous stuff
-     )      
+  if (d != Doxygen::globalScope && // skip the global namespace symbol
+    d->name().at(0) != '@'       // skip anonymous stuff
+    )
   {
     printf("Symbol info\n");
     printf("-----------\n");
-    printf("Name: %s\n",d->name().data());
-    printf("File: %s\n",d->getDefFileName().data());
-    printf("Line: %d\n",d->getDefLine());
-    printf("brief: %s\n", d->briefDescription().data());
-    printf("docment: %s\n", d->documentation().data());
+    printf("Name: %s\n", d->name().data());
+    printf("File: %s\n", d->getDefFileName().data());
+    printf("Line: %d\n", d->getDefLine());
     // depending on the definition type we can case to the appropriate
     // derived to get additional information
     switch (d->definitionType())
     {
-      case Definition::TypeClass:
-        {
-          ClassDef *cd = (ClassDef *)d;
-          printf("Kind: %s\n",cd->compoundTypeString().data());
-        }
-        break;
-      case Definition::TypeFile:
-        {
-          FileDef *fd = (FileDef *)d;
-          printf("Kind: File: #includes %d other files\n",
-              fd->includeFileList() ? fd->includeFileList()->count() : 0);
-        }
-        break;
-      case Definition::TypeNamespace:
-        {
-          NamespaceDef *nd = (NamespaceDef *)d;
-          printf("Kind: Namespace: contains %d classes and %d namespaces\n",
-              nd->getClassSDict() ? nd->getClassSDict()->count() : 0,
-              nd->getNamespaceSDict() ? nd->getNamespaceSDict()->count() : 0);
-        }
-        break;
-      case Definition::TypeMember:
-        {
-          MemberDef *md = (MemberDef *)d;
-          printf("Kind: %s\n",md->memberTypeName().data());
-        }
-        break;
-      default:
-        // ignore groups/pages/packages/dirs for now
-        break;
+    case Definition::TypeClass:
+    {
+      ClassDef* cd = dynamic_cast<ClassDef*>(d);
+      printf("Kind: %s\n", cd->compoundTypeString().data());
+    }
+    break;
+    case Definition::TypeFile:
+    {
+      FileDef* fd = dynamic_cast<FileDef*>(d);
+      printf("Kind: File: #includes %d other files\n",
+        fd->includeFileList() ? fd->includeFileList()->count() : 0);
+    }
+    break;
+    case Definition::TypeNamespace:
+    {
+      NamespaceDef* nd = dynamic_cast<NamespaceDef*>(d);
+      printf("Kind: Namespace: contains %d classes and %d namespaces\n",
+        nd->getClassSDict() ? nd->getClassSDict()->count() : 0,
+        nd->getNamespaceSDict() ? nd->getNamespaceSDict()->count() : 0);
+    }
+    break;
+    case Definition::TypeMember:
+    {
+      MemberDef* md = dynamic_cast<MemberDef*>(d);
+      printf("Kind: %s\n", md->memberTypeName().data());
+    }
+    break;
+    default:
+      // ignore groups/pages/packages/dirs for now
+      break;
     }
   }
 }
 
-static void lookupSymbols(const QCString &sym)
+static void lookupSymbols(const QCString& sym)
 {
   if (!sym.isEmpty())
   {
-    DefinitionIntf *di = Doxygen::symbolMap->find(sym);
+    DefinitionIntf* di = Doxygen::symbolMap->find(sym);
     if (di)
     {
-      if (di->definitionType()==DefinitionIntf::TypeSymbolList)
+      if (di->definitionType() == DefinitionIntf::TypeSymbolList)
       {
         DefinitionListIterator dli(*(DefinitionList*)di);
-        Definition *d;
+        Definition* d;
         // for each symbol with the given name
-        for (dli.toFirst();(d=dli.current());++dli)
+        for (dli.toFirst(); (d = dli.current()); ++dli)
         {
           lookupSymbol(d);
         }
@@ -249,13 +248,13 @@ static void lookupSymbols(const QCString &sym)
   }
 }
 
-int main(int argc,char **argv)
+int main(int argc, char** argv)
 {
   char cmd[256];
 
-  if (argc<2)
+  if (argc < 2)
   {
-    printf("Usage: %s [source_file | source_dir]\n",argv[0]);
+    printf("Usage: %s [source_file | source_dir]\n", argv[0]);
     exit(1);
   }
 
@@ -264,62 +263,59 @@ int main(int argc,char **argv)
 
   // setup the non-default configuration options
 
+  checkConfiguration();
+  adjustConfiguration();
   // we need a place to put intermediate files
-  Config_getString(OUTPUT_DIRECTORY)="/tmp/doxygen"; 
+  Config_getString(OUTPUT_DIRECTORY) = "tmp";
   // disable html output
-  Config_getBool(GENERATE_HTML)=FALSE;
+  Config_getBool(GENERATE_HTML) = FALSE;
   // disable latex output
-  Config_getBool(GENERATE_LATEX)=FALSE;
+  Config_getBool(GENERATE_LATEX) = FALSE;
   // be quiet
-  Config_getBool(QUIET)=TRUE;
+  Config_getBool(QUIET) = TRUE;
   // turn off warnings
-  Config_getBool(WARNINGS)=FALSE;
-  Config_getBool(WARN_IF_UNDOCUMENTED)=FALSE;
-  Config_getBool(WARN_IF_DOC_ERROR)=FALSE;
+  Config_getBool(WARNINGS) = FALSE;
+  Config_getBool(WARN_IF_UNDOCUMENTED) = FALSE;
+  Config_getBool(WARN_IF_DOC_ERROR) = FALSE;
   // Extract as much as possible
-  Config_getBool(EXTRACT_ALL)=TRUE;
-  Config_getBool(EXTRACT_STATIC)=TRUE;
-  Config_getBool(EXTRACT_PRIVATE)=TRUE;
-  Config_getBool(EXTRACT_LOCAL_METHODS)=TRUE;
+  Config_getBool(EXTRACT_ALL) = TRUE;
+  Config_getBool(EXTRACT_STATIC) = TRUE;
+  Config_getBool(EXTRACT_PRIVATE) = TRUE;
+  Config_getBool(EXTRACT_LOCAL_METHODS) = TRUE;
   // Extract source browse information, needed 
   // to make doxygen gather the cross reference info
-  Config_getBool(SOURCE_BROWSER)=TRUE;
+  Config_getBool(SOURCE_BROWSER) = TRUE;
+  // In case of a directory take all files on directory and its subdirectories
+  Config_getBool(RECURSIVE) = TRUE;
 
-  // check and finialize the configuration
-  checkConfiguration();
-
-// >> w.a.
   // set the input
-  Config_getBool(EXTRACT_ALL)=TRUE;
-  Config_getBool(EXTRACT_STATIC)=TRUE;
-  Config_getBool(RECURSIVE)=FALSE;
   Config_getList(INPUT).clear();
   Config_getList(INPUT).append(argv[1]);
+#ifdef DOXYGEN_PREVIEWER
   QCString output_dir_str = argv[1];
   QFileInfo fi(output_dir_str);
   QDir output_dir = fi.dir();
-  Config_getString(OUTPUT_DIRECTORY) = output_dir.absPath().data(); 
-  Config_getBool(GENERATE_HTML)=TRUE;
-  printf("output = %s\n", Config_getString(OUTPUT_DIRECTORY).data());
-// << w.a.
-
-  adjustConfiguration();
+  Config_getString(OUTPUT_DIRECTORY) = output_dir.absPath().data();
+  Config_getBool(GENERATE_HTML) = TRUE;
+#endif
 
   // parse the files
   parseInput();
+#ifdef DOXYGEN_PREVIEWER
   generateOutput();
+#endif
 
-#if 0
+#ifndef DOXYGEN_PREVIEWER
   // iterate over the input files
-  FileNameListIterator fnli(*Doxygen::inputNameList); 
-  FileName *fn;
+  FileNameListIterator fnli(*Doxygen::inputNameList);
+  FileName* fn;
   // foreach file with a certain name
-  for (fnli.toFirst();(fn=fnli.current());++fnli)
+  for (fnli.toFirst(); (fn = fnli.current()); ++fnli)
   {
     FileNameIterator fni(*fn);
-    FileDef *fd;
+    FileDef* fd;
     // for each file definition
-    for (;(fd=fni.current());++fni)
+    for (; (fd = fni.current()); ++fni)
     {
       // get the references (linked and unlinked) found in this file
       findXRefSymbols(fd);
@@ -330,22 +326,21 @@ int main(int argc,char **argv)
   if (!Doxygen::objDBFileName.isEmpty()) QFile::remove(Doxygen::objDBFileName);
   if (!Doxygen::entryDBFileName.isEmpty()) QFile::remove(Doxygen::entryDBFileName);
   // clean up after us
-  QDir().rmdir("/tmp/doxygen");
+  QDir().rmdir("tmp");
 
   while (1)
   {
-    printf("> Type a symbol name or\n> .list for a list of symbols or\n> .quit to exit\n");
-    printf("> !! V2 !!\n> ");
-    fgets(cmd,256,stdin);
+    printf("> Type a symbol name or\n> .list for a list of symbols or\n> .quit to exit\n> ");
+    fgets(cmd, 256, stdin);
     QCString s(cmd);
-    if (s.at(s.length()-1)=='\n') s=s.left(s.length()-1); // strip trailing \n
-    if (s==".list") 
+    if (s.at(s.length() - 1) == '\n') s = s.left(s.length() - 1); // strip trailing \n
+    if (s == ".list")
       listSymbols();
-    else if (s==".quit") 
+    else if (s == ".quit")
       exit(0);
-    else 
+    else
       lookupSymbols(s);
   }
-#endif
+#endif /* DOXYGEN_PREVIEWER */
 }
 
