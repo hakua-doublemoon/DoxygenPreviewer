@@ -1,12 +1,12 @@
 {
 	"name": "doxygen-previewer",
 	"displayName": "Doxygen Previewer",
-	"description": "",
-	"publisher": "hakua-doublemoon",
+	"description": "Show the preview Doxygen documentation.",
+	"publisher": "hakua",
 	"author": "hakua-doublemoon",
 	"license": "MIT",
 	"readme": "README.md",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/hakua-doublemoon/DoxygenPreviewer"

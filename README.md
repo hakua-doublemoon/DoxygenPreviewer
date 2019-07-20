@@ -18,7 +18,15 @@
 
 α版です。何が起こっても不思議ではありません。
 
+### 0.0.3
+
+β版みたいなものです。一応それなりに使えるつもりですが不具合はあるかもしれません。
+
 ## more information
+
+* [Github repository](https://github.com/hakua-doublemoon/DoxygenPreviewer)
+
+* [Introduction in Qiita](https://qiita.com/hakua-doublemoon/items/c328a7bf0bc7a1fbef14)
 
 * [Doxygen](https://github.com/doxygen/doxygen)
     * 内部のdoxygen生成機能はdoxygenのaddon/doxyappの改造品を使っています。それらDoxygenに直接由来するバイナリーやソースコードのライセンスはDoxygenのライセンスに依存します。
