@@ -31,7 +31,7 @@ export function activate(context: vscode.ExtensionContext)
     );
     let html_obj = doxygen_exec(context.extensionPath);
 
-    const insert_script_dir = path.join(context.extensionPath, "src", "insert_script");
+    const insert_script_dir = path.join(context.extensionPath, "script", "insert_script");
     const insert_script_uri = vscode.Uri.file(path.join(insert_script_dir, "message.js"));    
     const insert_script_str = insert_script_uri.with({ scheme: 'vscode-resource' }).toString(true);
     const css_path = vscode.Uri.file( path.join(output_dir, 'html', 'doxygen.css') );
