@@ -105,7 +105,8 @@ export function activate(context: vscode.ExtensionContext)
                 panel_alive = false;
             });
         } else {
-            panel_obj.webview.html = "";
+            self_ctrl_info.panel.current = "";
+            //panel_obj.webview.html = "";
         }
 
         html_str_load(html_obj, panel_obj, css_src, insert_script_str);
@@ -125,7 +126,7 @@ function html_str_load(html_obj: {load: string, original: string},
     self_ctrl_info.panel.previous = self_ctrl_info.panel.current;
     self_ctrl_info.panel.current = html_obj.original;
     console.log("current : " + self_ctrl_info.panel.current);
-    vscode.workspace.openTextDocument(html_obj.original).then(doc=> {
+    vscode.workspace.openTextDocument(html_obj.load).then(doc=> {
         console.log("set html doc");
         panel_obj.webview.html = html_string_get(doc, css_src, insert_script_str);
     });

@@ -47,8 +47,8 @@ window.onload = () => {
             continue;
         }
         const href_str = element.href;
-        const position = element.getBoundingClientRect();
-        const scrl_pos = position.top;
+        //const position = element.getBoundingClientRect();
+        //const scrl_pos = position.top;
         //console.log(href_str);
         element.addEventListener('click',
             () => {
