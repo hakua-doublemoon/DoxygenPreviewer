@@ -6,15 +6,13 @@ import * as fs from 'fs';
 import * as child_process from 'child_process';
 import * as fsExtra from 'fs-extra';
 
+import subFn = require('./sub');
+import CtrlInfo = require('./CtrlInfo');
+let self_ctrl_info = new CtrlInfo.CtrlInfo();
+
 const env = process.env; // 環境変数からtmpフォルダを求める
 const output_dir = (env.Tmp ? path.join(env.Tmp, "DoxygenViewer") : "");
-var panel_alive = false;
-var self_ctrl_info = {
-    panel: {
-        current: "",
-        previous: "",
-    }
-}
+
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -23,12 +21,6 @@ export function activate(context: vscode.ExtensionContext)
     console.log('Congratulations, your extension "DoxygenPreviewer" is now active!');
     console.log(context.extensionPath);
 
-    vscode.window.onDidChangeVisibleTextEditors(
-        () => {
-            //console.log("fire");
-            //html_name = doxygen_exec(context.extensionPath);
-        }
-    );
     let html_obj = doxygen_exec(context.extensionPath);
 
     const insert_script_dir = path.join(context.extensionPath, "script", "insert_script");
@@ -44,34 +36,7 @@ export function activate(context: vscode.ExtensionContext)
         vscode.Uri.file(output_dir),
         vscode.Uri.file(insert_script_dir),
     ];
-    let panel_obj = vscode.window.createWebviewPanel(
-        "doxy", 
-        "doxygen browser", 
-        vscode.ViewColumn.Beside, 
-        {
-            enableScripts: true,
-            enableFindWidget: true,
-            localResourceRoots: resource_root,
-        }
-    );
-    panel_alive = true;
-    panel_obj.onDidDispose( () => {
-        console.log("onDidDispose");
-        panel_alive = false;
-    });
-    panel_obj.webview.onDidReceiveMessage( (ev) => {
-        console.log("receive : " + ev);
-        if (!ev.data) {
-            return;
-        }
-        const data = ev.data;
-        if (ev.command === "link") {
-            next_html_load(data, panel_obj, css_src, insert_script_str);
-        }
-    });
-
-    // Use the console to output diagnostic information (console.log) and errors (console.error)
-    // This line of code will only be executed once when your extension is activated
+    let panel_obj: vscode.WebviewPanel;
 
     // The command has been defined in the package.json file
     // Now provide the implementation of the command with registerCommand
@@ -88,7 +53,7 @@ export function activate(context: vscode.ExtensionContext)
             return;
         } 
 
-        if (!panel_alive) {
+        if (!self_ctrl_info.panel.panel_alive) {
             panel_obj = vscode.window.createWebviewPanel(
                 "doxy", 
                 "doxygen browser", 
@@ -99,20 +64,43 @@ export function activate(context: vscode.ExtensionContext)
                     localResourceRoots: resource_root,
                 }
             );
-            panel_alive = true;
             panel_obj.onDidDispose( () => {
                 console.log("onDidDispose");
-                panel_alive = false;
+                self_ctrl_info.panel.panel_alive = false;
             });
-        } else {
-            self_ctrl_info.panel.current = "";
-            //panel_obj.webview.html = "";
+            panel_obj.webview.onDidReceiveMessage( (ev) => {
+                if (!ev.data) {
+                    return;
+                }
+                const data = ev.data;
+                switch (ev.command) {
+                  case "link":
+                    next_html_load(data, panel_obj, css_src, insert_script_str);
+                  case "scroll":
+                    console.log(ev.data);
+                    self_ctrl_info.panel.scrolltop = ev.data;
+                  case "notice":
+                    first_position_request(panel_obj, self_ctrl_info.panel.scrolltop);
+                }
+            });
+            self_ctrl_info.panel.panel_alive = true;
         }
 
         html_str_load(html_obj, panel_obj, css_src, insert_script_str);
     });
 
     context.subscriptions.push(disposable);
+}
+
+function first_position_request(panel_obj: vscode.WebviewPanel, scrolltop: number)
+{
+    if (self_ctrl_info.panel.current == self_ctrl_info.panel.previous) {
+        const obj = {
+            command: "scroll",
+            data:    scrolltop,
+        }
+        panel_obj.webview.postMessage(obj);
+    }
 }
 
 function html_str_load(html_obj: {load: string, original: string}, 
@@ -142,15 +130,11 @@ function next_html_load(link_data: string,
     const html_name = path.join(output_dir, "html", link_data);
     console.log("next : " + html_name);
     if (self_ctrl_info.panel.current == html_name) {
-        //const obj = {
-        //    command: "scroll",
-        //    data:    scrl_pos,
-        //}
-        //panel_obj.webview.postMessage(obj);
         return;
     }
     const obj = {load: html_name, original: html_name};
     html_str_load(obj, panel_obj, css_src, insert_script_str);
+    self_ctrl_info.panel.scrolltop = 0;
 }
 
 function html_string_get(doc: vscode.TextDocument, css_src: string, insert_script_str: string) {
@@ -168,23 +152,12 @@ function html_string_get(doc: vscode.TextDocument, css_src: string, insert_scrip
             const title_rnd = Math.floor(Math.random() * 1000);
             return "<title>" + title_rnd + "</title>"
         } else if (fn.includes("href=") && !fn.includes("css")) {
-            return fn.replace("href=\"", "href=\"file:\/\/\/"); // よくわからんがこれがないとリンクを移動しようとする
+            return fn.replace(/href=\"/g, "href=\"file:\/\/\/"); // よくわからんがこれがないとリンクを移動しようとする
         } else {
             return fn;
         }
     });
     return line_strs2.join("");
-}
-
-function src_name_of_workspace_get(path: String)
-{
-    const fn = path.split(/\\|\//).slice(-1)[0];
-    console.log("get_src_name_of_workspace : " + fn);
-    var ret_str = "";
-    if (fn.match(/\.c$|\.h$|\.cpp$|\.hpp$/)) {
-        ret_str = fn;
-    }
-    return ret_str;
 }
 
 function doxygen_exec(current_path: string)
@@ -229,7 +202,7 @@ function doxygen_exec_main(current_path: string)
     }
     let working_file_path = editor.document.fileName;
 
-    const working_file_name = src_name_of_workspace_get(working_file_path);
+    const working_file_name = subFn.src_name_of_workspace_get(working_file_path);
     if (working_file_name == "") {
         return ret_obj;
     }
@@ -242,7 +215,7 @@ function doxygen_exec_main(current_path: string)
 
     const html_dir = path.join(output_dir, "html");
     const file_list = fs.readdirSync(html_dir);
-    const src_file_name = camel_to_snake(working_file_name.split(".")[0]);
+    const src_file_name = subFn.camel_to_snake(working_file_name.split(".")[0]);
     let html_name = "";
     let original_name = "";
     console.log("src_file_name = " + src_file_name);
@@ -266,16 +239,6 @@ function doxygen_exec_main(current_path: string)
     ret_obj.original = original_name;
     return ret_obj;
 }
-
-// https://qiita.com/thelarch/items/cc4707e1c7ef0d73ba73
-var camel_to_snake = function(p: string){
-    //大文字を_+小文字にする(例:A を _a)
-    return p.replace(/([A-Z])/g,
-        function(s) {
-            return '_' + s.charAt(0).toLowerCase();
-        }
-    );
-};
 
 // this method is called when your extension is deactivated
 export function deactivate() {}

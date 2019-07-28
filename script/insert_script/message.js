@@ -57,13 +57,23 @@ window.onload = () => {
             }
         )
     }
+    vscode_post_msg("notice", "load completed");
 }
+
+// https://naruhodo.repop.jp/javascript-scroll-event/
+// スクロールをトリガーにしたイベント
+window.addEventListener('scroll', () => {
+    //高さを取得して表示
+    let scrollTop = document.scrollingElement.scrollTop;
+  　vscode_post_msg("scroll",  scrollTop);
+}, false);
 
 window.addEventListener('message', event => {
     console.log(event);
     const message = event.data; // The JSON data our extension sent
     switch (message.command) {
       case 'scroll':
+        console.log("scroll to : " + message.data);
         window.scrollTo(0,message.data);
         break;
     }
