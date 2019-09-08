@@ -8,14 +8,14 @@ function vscode_post_msg(command, data)
     vscode.postMessage(obj);
 }   
 
-var counter = 0;
-function count_test()
-{
-    counter = counter + 1;
+//var counter = 0;
+//function count_test()
+//{
+//    counter = counter + 1;
     //console.log(i);
     //vscode_post_msg("test", i);
-}
-setInterval("count_test()",1000);
+//}
+//setInterval("count_test()",1000);
 
 function link_message(href_str)
 {
@@ -65,7 +65,8 @@ window.onload = () => {
 window.addEventListener('scroll', () => {
     //高さを取得して表示
     let scrollTop = document.scrollingElement.scrollTop;
-  　vscode_post_msg("scroll",  scrollTop);
+    //console.log("scroll top = " + scrollTop);
+    vscode_post_msg("scroll",  scrollTop);
 }, false);
 
 window.addEventListener('message', event => {
@@ -76,5 +77,28 @@ window.addEventListener('message', event => {
         console.log("scroll to : " + message.data);
         window.scrollTo(0,message.data);
         break;
+      case 'fade':
+        var target = document.getElementById("fadeLayer");
+        //console.log("top = " + window.pageYOffset);
+        target.style.top = `${window.pageYOffset}px`;
+        target.style.visibility = "visible";
+        break;
     }
 });
+
+document.addEventListener('keyup', event => {
+    if (!event.ctrlKey) {
+        return;
+    }
+    if ( (event.key === "Left") 
+      || (event.key === "ArrowLeft")
+    ) {
+        console.log(event);
+        vscode_post_msg("keyup",  "Left");
+    }
+});
+
+//document.dispatchEvent( new KeyboardEvent( "keyup", {key: "Left" }) );
+//window.document.onkeyup = function( event ) {
+//    　vscode_post_msg("keyup",  "Left");
+//}

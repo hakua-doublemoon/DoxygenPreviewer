@@ -24,8 +24,12 @@ export function activate(context: vscode.ExtensionContext)
     let html_obj = doxygen_exec(context.extensionPath);
 
     const insert_script_dir = path.join(context.extensionPath, "script", "insert_script");
-    const insert_script_uri = vscode.Uri.file(path.join(insert_script_dir, "message.js"));    
-    const insert_script_str = insert_script_uri.with({ scheme: 'vscode-resource' }).toString(true);
+    const insert_script_uri = vscode.Uri.file(path.join(insert_script_dir, "message.js"));
+    const insert_script_css = vscode.Uri.file(path.join(insert_script_dir, "fade.css"));
+    const insert_scripts =  [
+                insert_script_uri.with({ scheme: 'vscode-resource' }).toString(true),
+                insert_script_css.with({ scheme: 'vscode-resource' }).toString(true)
+                            ];
     const css_path = vscode.Uri.file( path.join(output_dir, 'html', 'doxygen.css') );
     const css_src  = css_path.with({ scheme: 'vscode-resource' }).toString(true);
 
@@ -67,6 +71,7 @@ export function activate(context: vscode.ExtensionContext)
             panel_obj.onDidDispose( () => {
                 console.log("onDidDispose");
                 self_ctrl_info.panel.panel_alive = false;
+                self_ctrl_info.panel.current = "";
             });
             panel_obj.webview.onDidReceiveMessage( (ev) => {
                 if (!ev.data) {
@@ -75,57 +80,61 @@ export function activate(context: vscode.ExtensionContext)
                 const data = ev.data;
                 switch (ev.command) {
                   case "link":
-                    next_html_load(data, panel_obj, css_src, insert_script_str);
+                    next_html_load(data, panel_obj, css_src, insert_scripts);
+                    break;
                   case "scroll":
-                    console.log(ev.data);
+                    //console.log(ev.data);
                     self_ctrl_info.panel.scrolltop = ev.data;
+                    break;
                   case "notice":
                     first_position_request(panel_obj, self_ctrl_info.panel.scrolltop);
+                    break;
+                  case "keyup":
+                    prev_html_load(panel_obj, css_src, insert_scripts);
+                    //vscode.window.showInformationMessage('key up : ' + ev.data);
+                    break;
+                  default:
+                    break;
                 }
             });
             self_ctrl_info.panel.panel_alive = true;
         }
 
-        html_str_load(html_obj, panel_obj, css_src, insert_script_str);
+        html_str_load(html_obj, panel_obj, css_src, insert_scripts);
     });
 
     context.subscriptions.push(disposable);
 }
 
-function first_position_request(panel_obj: vscode.WebviewPanel, scrolltop: number)
-{
-    if (self_ctrl_info.panel.current == self_ctrl_info.panel.previous) {
-        const obj = {
-            command: "scroll",
-            data:    scrolltop,
-        }
-        panel_obj.webview.postMessage(obj);
-    }
-}
-
 function html_str_load(html_obj: {load: string, original: string}, 
                        panel_obj: vscode.WebviewPanel, 
                        css_src: string, 
-                       insert_script_str: string)
+                       insert_scripts: string[])
 {
     if (!html_obj.load || !html_obj.original) {
         return;
     }
-    self_ctrl_info.panel.previous = self_ctrl_info.panel.current;
-    self_ctrl_info.panel.current = html_obj.original;
-    console.log("current : " + self_ctrl_info.panel.current);
-    vscode.workspace.openTextDocument(html_obj.load).then(doc=> {
-        console.log("set html doc");
-        panel_obj.webview.html = html_string_get(doc, css_src, insert_script_str);
-    });
+    const then_func = () => {
+        self_ctrl_info.panel.previous = self_ctrl_info.panel.current;
+        self_ctrl_info.panel.current = html_obj.original;
+        console.log("current : " + self_ctrl_info.panel.current);
+        vscode.workspace.openTextDocument(html_obj.load).then(doc=> {
+            console.log("set html doc");
+            panel_obj.webview.html = html_string_get(doc, css_src, insert_scripts);
+        });
+    }
+    fade_request(panel_obj, then_func);
+    // sleepを入れた方がいい気もするがめんどうなので保留
 }
 
 function next_html_load(link_data: string, 
                        panel_obj: vscode.WebviewPanel, 
                        css_src: string, 
-                       insert_script_str: string)
+                       insert_scripts: string[])
 {
-    //const scrl_pos = link_data.replace(/^.+@/, "");
+    if (!link_data.includes(".html")) {
+        return;
+    }
     link_data = link_data.replace("file:\/\/\/", "").replace(/#.+/, "").replace(/@.+/, "");
     const html_name = path.join(output_dir, "html", link_data);
     console.log("next : " + html_name);
@@ -133,19 +142,44 @@ function next_html_load(link_data: string,
         return;
     }
     const obj = {load: html_name, original: html_name};
-    html_str_load(obj, panel_obj, css_src, insert_script_str);
+    html_str_load(obj, panel_obj, css_src, insert_scripts);
     self_ctrl_info.panel.scrolltop = 0;
 }
 
-function html_string_get(doc: vscode.TextDocument, css_src: string, insert_script_str: string) {
+function prev_html_load(panel_obj: vscode.WebviewPanel, 
+                        css_src: string, 
+                        insert_scripts: string[])
+{
+    console.log("page :" +
+                "\n current  : " + self_ctrl_info.panel.current +
+                "\n previous : " + self_ctrl_info.panel.previous);
+    if (self_ctrl_info.panel.current == self_ctrl_info.panel.previous) {
+        return;
+    }
+    const obj = {load: self_ctrl_info.panel.previous, original: self_ctrl_info.panel.previous};
+    html_str_load(obj, panel_obj, css_src, insert_scripts);
+    self_ctrl_info.panel.scrolltop = 0;
+}
+
+function html_string_get(doc: vscode.TextDocument, css_src: string, insert_scripts: string[]) {
     const buf = doc.getText().toString();
     let line_strs = buf.split(/\r\n|\n/);
 
     const css_link_tag = "<link href=\"" + css_src +"\" rel=\"stylesheet\" type=\"text/css\" />";
     //console.log("cssSrc = " + css_link_tag);
     line_strs.splice(15, 0, css_link_tag); // 15行目にcssの指定があるのでそれに合わせる。
-    const script_tag = `<script type="text/javascript" src="${insert_script_str}"></script>`;
+    const script_tag = `<script type="text/javascript" src="${insert_scripts[0]}"></script>`;
     line_strs.splice(13, 0, script_tag);
+    const css_tag = `<link href="${insert_scripts[1]}" rel="stylesheet" type="text/css"/>`;
+    line_strs.splice(14, 0, css_tag);
+    const sec_meta_tag = `
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src vscode-resource: https:; script-src vscode-resource:; style-src vscode-resource:;"
+    />`;
+    line_strs.splice(3, 0, sec_meta_tag);
+    line_strs.splice(0, 1, '<!DOCTYPE html>');
+    line_strs.splice(1, 1, '<html>');
 
     let line_strs2 = line_strs.map( (fn) => {
         if (fn.includes("<title>")) {
@@ -153,6 +187,9 @@ function html_string_get(doc: vscode.TextDocument, css_src: string, insert_scrip
             return "<title>" + title_rnd + "</title>"
         } else if (fn.includes("href=") && !fn.includes("css")) {
             return fn.replace(/href=\"/g, "href=\"file:\/\/\/"); // よくわからんがこれがないとリンクを移動しようとする
+        } else if (fn.includes("<body>")) {
+            const fade_tag = '<div id="fadeLayer" style="visibility: hidden; top: 0;"></div>'
+            return fn + fade_tag;
         } else {
             return fn;
         }
@@ -238,6 +275,31 @@ function doxygen_exec_main(current_path: string)
     ret_obj.load     = html_name;
     ret_obj.original = original_name;
     return ret_obj;
+}
+
+function first_position_request(panel_obj: vscode.WebviewPanel, scrolltop: number)
+{
+    if (self_ctrl_info.panel.current == self_ctrl_info.panel.previous) {
+        const obj = {
+            command: "scroll",
+            data:    scrolltop,
+        }
+        panel_obj.webview.postMessage(obj);
+    }
+}
+
+function fade_request(panel_obj: vscode.WebviewPanel, then_func: ()=>void)
+{
+    if (self_ctrl_info.panel.current == "") {
+        then_func();
+        return;
+    }
+    console.log("fade");
+    const obj = {
+        command: "fade",
+        data:    "",
+    }
+    panel_obj.webview.postMessage(obj).then(then_func);
 }
 
 // this method is called when your extension is deactivated

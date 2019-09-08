@@ -1,21 +1,25 @@
 # Doxygen Previewer
 
-今まさに編集しているファイルのdoxygenを生成し表示します。
+Show the preview of Doxygen documentation for the file being written.  
+（今まさに編集しているファイルのdoxygenを生成し表示します。）
 
 ## Target & Environment (Requirements)
 
-* c, h, cpp, hppを処理します。それ以外は無視します。
-* Windows環境 x64を想定しています。
-    + Tmp環境変数が設定されていることが必要です。
-    + 32bit環境ではたぶん動きません。
+* for the file having extension c, h, cpp, hpp. <br>（c, h, cpp, hppのファイルを処理します。それ以外は無視します。）
+* for Windows (x64) <br>（Windows環境 x64を想定しています。）
+    + Need TMP environment variable in your system <br>（TMP環境変数が設定されていることが必要です。）
 
 ## Usage
 
-* ソースコード（cやh）をアクティブにした状態で、`doxygen previewer`コマンドを(ctrl+shift+pから)実行してください。
+* Please enter `doxygen preview` while focusing on source code.  
+  （ソースコード（cやh）をアクティブにした状態で、`doxygen previewer`コマンドを(ctrl+shift+pから)実行してください。）
+    + You can move the links. (リンクを移動できます)
+    + If you want to back to the previous page, press `ctrl + Left`. （ctrl+左矢印で前の画面に戻れます）
 
-### トラブルシューティング
+### Trouble Shooting
 
-* 実行時にもし`Please close %Temp% directory`と出た場合は再度コマンドを実行してみてください。
+* If you find the message `Please close %Temp% directory`, please enter the command again.  
+  （実行時にもし`Please close %Temp% directory`と出た場合は再度コマンドを実行してみてください。）
 
 ## more information
 
